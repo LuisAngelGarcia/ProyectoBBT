@@ -6,7 +6,7 @@ Sistema automatizado para el Ensayo de Caja y Cubos usando Kinect, C++ y OpenCV
 
 El sistema consta de dos versiones del algoritmo detector. La versión por defecto (archivo detector.cpp) contiene el algoritmo computacionalmente más pesado y que arroja mejores resultados de detección de bloques. El archivo detector1.cpp describe el algoritmo detector ligero, con peores resultados.
 
-Las imágenes deben ser incluidas en la carpeta del proyecto, para poder realizar los "template matching".
+Las imágenes deben ser incluidas en la carpeta del proyecto para poder realizar los "template matching".
 
 Los archivos kinect.props y OpenCV.props contienen la configuración de la librería OpenCV y del Microsoft SDK para Microsoft Visual Studio 2015.
 
