@@ -8,7 +8,7 @@ El sistema consta de dos versiones del algoritmo detector. La versión por defec
 
 Las imágenes deben ser incluidas en la carpeta del proyecto, para poder realizar los "template matching".
 
-La carpeta «Sheets» contiene las hojas de configuración de la librería OpenCV y del Microsoft SDK para Microsoft Visual Studio 2015.
+Los archivos kinect.props y OpenCV.props contienen la configuración de la librería OpenCV y del Microsoft SDK para Microsoft Visual Studio 2015.
 
 ## English
 
@@ -18,4 +18,4 @@ The system contains two versions of the detection algorithm. The default version
 
 Images must be included in project folder in order to make the template matchings.
 
-Folder "Sheets" contains the configuration files of OpenCV library and Microsoft SDK for Microsoft Visual Studio 2015.
+Files kinect.props y OpenCV.props contain the configuration of the OpenCV library and Microsoft SDK for Microsoft Visual Studio 2015.
