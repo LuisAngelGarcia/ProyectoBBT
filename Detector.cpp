@@ -13,15 +13,15 @@
 #define FYINV 0.35
 //Valores de Hue para la segmentación por colores en el rango 0-360 http://www.workwithcolor.com/pink-red-color-hue-range-01.htm
 #define REDINF 340.0
-#define REDSUP 21.9
-#define GREENINF 78.0
-#define GREENSUP 155.0
+#define REDSUP 22.8
+#define GREENINF 75.0
+#define GREENSUP 158.0
 #define BLUEINF 195.0
 #define BLUESUP 242.0
-#define YELLOWINF 50.0
+float YELLOWINF = 52.0;
 #define YELLOWSUP 73.0
-#define BACKGROUNDINF 22.0
-#define BACKGROUNDSUP 49.0
+#define BACKGROUNDINF 23.0
+float BACKGROUNDSUP = 51.0;
 //Parámetros de ajuste
 const float T1 = 0.75, T2 = 0.45; //T1 -> umbral de detecciones seguras, T2 -> umbral de detecciones menos probables
 const char distanceBetweenBlocks = 20; //Distancia mínima entre dos detecciones para no ser descartadas (en X y en Y)
@@ -53,7 +53,7 @@ void Detector::updateDepth(Mat &m) {
 	depth.update(m);
 };
 
-void Detector::locateBoxes(Mat &m) {
+void Detector::locateBoxes(Mat &m, Mat &n) {
 
 	Mat rangeOutput;
 	vector<vector<Point> > contours;
@@ -126,7 +126,7 @@ void Detector::locateBoxes(Mat &m) {
 	
 	for (int i = 0; i < contours1.size(); i++){
 		minRect1 = minAreaRect(Mat(contours1[i]));
-		if ((minRect1.center.x > 210) && (minRect1.center.x < 300) && (minRect1.center.y > 140) && (minRect1.center.y < 285)) {//La caja tiene que estar más o menos centrada
+		if ((minRect1.center.x > 210) && (minRect1.center.x < 300) && (minRect1.center.y > 140) && (minRect1.center.y < 285)) {//La caja tiene que estar más o menos centrado
 			if (minRect1.size.width > temp.size.width) {//Comprobación de tamaño
 				temp = minRect1;
 			}
@@ -170,7 +170,7 @@ void Detector::locateBoxes(Mat &m) {
 		p2.y = tl.y + boxRect.height;
 		emptyBoxRect = Rect(p1, br);
 		boxRect = Rect(tl, p2);
-		//emptyDepth = m.at<uchar>(centroid2);
+		emptyDepth = m.at<uchar>(centroid2);
 	}
 	else {
 		emptyBoxFlag=1;//lado izquierdo del paciente
@@ -181,9 +181,41 @@ void Detector::locateBoxes(Mat &m) {
 		p2.y = tl.y;
 		emptyBoxRect = Rect(tl, p1);
 		boxRect = Rect(p2, br);
-		//emptyDepth = m.at<uchar>(centroid1);
+		emptyDepth = m.at<uchar>(centroid1);
 	}
+	//Determinar frontera entre amarillo y fondo
+	Point center;
+	Mat colorHSV(1080, 1920, CV_32FC4);
+	Mat colorH;
+	Mat planes[4];
+	Vec3b a;
+	float values[5];
+
+	//Posicionar el centroide en la imagen de color
+	if (emptyBoxFlag == 0) center = Point((centroid2.x * FX) + 255, (centroid2.y * FY) - 62);
+	else center = Point((centroid1.x * FX) + 218, (centroid1.y * FY) - 62);
+
+	//Lectura de los colores del fondo
+	cvtColor(n, colorHSV, CV_BGR2HSV);
 	
+	a = colorHSV.at<Vec3b>(center);
+	values[0] = a[0];
+	a = colorHSV.at<Vec3b>(Point(center.x - 150, center.y - 150));
+	values[1] = a[0];
+	a = colorHSV.at<Vec3b>(Point(center.x - 150, center.y + 150));
+	values[2] = a[0];
+	a = colorHSV.at<Vec3b>(Point(center.x + 150, center.y - 150));
+	values[3] = a[0];
+	a = colorHSV.at<Vec3b>(Point(center.x + 150, center.y + 150));
+	values[4] = a[0];
+	//Hallar valor máximo
+	float maxval;
+	maxval = (*max_element(values, values + 4)) * 2;
+	if ((maxval < 45) && (maxval < 55)) {
+		BACKGROUNDSUP = maxval - 1;
+		YELLOWINF = BACKGROUNDSUP + 0.5;
+	}
+	//cout << maxval;
 	//Mostrar compartimento
 	
 	
@@ -192,7 +224,7 @@ void Detector::locateBoxes(Mat &m) {
 	imshow("Box", m);
 	waitKey(100000);
 	destroyAllWindows();
-	//imwrite("localizacionCajas.jpg", m);
+	imwrite("localizacionCajas.jpg", m);
 
 };
 
@@ -444,7 +476,7 @@ void Detector::templateMatching(Mat &m, Mat &t, vector<Point> &a, vector<Point> 
 	waitKey(100000);
 	destroyAllWindows();*/
 	//imwrite("localizacionesInexactas.jpg", resThres2);
-	bool fin = 0;
+	bool pointsEnd = 0;
 	
 	do{
 		
@@ -456,9 +488,9 @@ void Detector::templateMatching(Mat &m, Mat &t, vector<Point> &a, vector<Point> 
 			a.push_back(maxloc);//guardar la localización
 		}
 		else
-			fin = 1;
-	} while (fin==0);
-	fin = 0;
+			pointsEnd = 1;
+	} while (pointsEnd==0);
+	pointsEnd = 0;
 	do{
 		
 		minMaxLoc(resThres2, &minval, &maxval, &minloc, &maxloc);
@@ -470,8 +502,8 @@ void Detector::templateMatching(Mat &m, Mat &t, vector<Point> &a, vector<Point> 
 			b.push_back(maxloc);//guardar la localización
 		}
 		else
-			fin = 1;
-	} while (fin==0);
+			pointsEnd = 1;
+	} while (pointsEnd==0);
 
 	//imshow("final", m);
 	//waitKey(0);
@@ -480,17 +512,17 @@ void Detector::templateMatching(Mat &m, Mat &t, vector<Point> &a, vector<Point> 
 void Detector::colorClassifier(Mat &roi, vector<Point> &src, vector<Block> &dst) {
 	//Comprobación del color del posible cubo del vector de detecciones seguras usando segmentación por HSV
 	Vec4b color, color1, color2, color3, color4;
-	float hue;
+	float hue, sat;
 	float r, g, b, max, min;
 	float mR, mG, mB;
 	int size = src.size();
 
 	for (int j = 0; j < size; j++) {
 		color = roi.at<Vec4b>(Point(src[j].x + 22, src[j].y + 22)); //Coger el color del centro del cubo
-		color1 = roi.at<Vec4b>(Point(src[j].x + 22, src[j].y + 27)); //Coger el color justo encima del centro del cubo
-		color2 = roi.at<Vec4b>(Point(src[j].x + 22, src[j].y + 17)); //Coger el color justo debajo del centro del cubo
-		color3 = roi.at<Vec4b>(Point(src[j].x + 27, src[j].y + 22)); //Coger el color justo a la derecha del centro del cubo
-		color4 = roi.at<Vec4b>(Point(src[j].x + 17, src[j].y + 22)); //Coger el color justo a la izquierda del centro del cubo
+		color1 = roi.at<Vec4b>(Point(src[j].x + 22, src[j].y + 29)); //Coger el color justo encima del centro del cubo
+		color2 = roi.at<Vec4b>(Point(src[j].x + 22, src[j].y + 15)); //Coger el color justo debajo del centro del cubo
+		color3 = roi.at<Vec4b>(Point(src[j].x + 29, src[j].y + 22)); //Coger el color justo a la derecha del centro del cubo
+		color4 = roi.at<Vec4b>(Point(src[j].x + 15, src[j].y + 22)); //Coger el color justo a la izquierda del centro del cubo
 
 		///Cálculo de la media de los píxeles adyacentes al centro
 		mR = (color1.val[2] + color2.val[2] + color3.val[2] + color4.val[2]) / 4;
@@ -525,11 +557,12 @@ void Detector::colorClassifier(Mat &roi, vector<Point> &src, vector<Block> &dst)
 		}
 		else hue = 39;
 
+		sat = max - min;
 
 		//Discriminación por colores y adición al vector de cubos, con color y posición
 		Block block;
 		if((abs(r - mR) < 5)&&((abs(g - mG) < 5))&&((abs(b - mB) < 5))){
-			if (!((hue>BACKGROUNDINF) && (hue<BACKGROUNDSUP))) { //No es fondo
+			if (!((hue>BACKGROUNDINF) && (hue<BACKGROUNDSUP) && (sat<50))) { //No es fondo
 				if ((hue>REDINF) || (hue<REDSUP)) { //Rojo
 					block.setColor(1);
 					block.setPos(src[j]);
@@ -549,7 +582,7 @@ void Detector::colorClassifier(Mat &roi, vector<Point> &src, vector<Block> &dst)
 					dst.push_back(block);
 				}
 
-				else if ((hue>YELLOWINF) && (hue<YELLOWSUP)) { //Amarillo
+				else if (((hue>YELLOWINF) && (hue<YELLOWSUP)) || ((hue>BACKGROUNDINF) && (hue<BACKGROUNDSUP) && (sat>50))) { //Amarillo
 					block.setColor(4);
 					block.setPos(src[j]);
 					block.setSize(22);
@@ -625,7 +658,7 @@ void Detector::detection(Mat & m, Mat &n) {
 	destroyAllWindows();*/
 	//imwrite("depthROI.jpg", depthROI);
 
-	//Filtro Canny
+	//Cambio a HSV y obtención de la imagen de intensidad del Hue
 	Mat gref, blurred, planes[4];
 	Mat colorROIhsv(colorROI.size().height, colorROI.size().width, CV_32FC4);
 	Mat colorROIh(colorROI.size().height, colorROI.size().height, CV_32FC1);
@@ -638,9 +671,16 @@ void Detector::detection(Mat & m, Mat &n) {
 	/*imshow("COLOR", colorROIhsv);
 	waitKey(100000);
 	destroyAllWindows();*/
-	//imwrite("colorROIgrey.jpg", colorROIgrey);
+
 
 	bilateralFilter(colorROIh, blurred, blurCoeff,blurCoeff * 2, blurCoeff/2 );
+	//GaussianBlur(colorROI, blurred, Size(3, 3), 0, 0);
+	//blur(colorROI, blurred, Size(3, 3));
+	//medianBlur(colorROI, blurred, medianCoeff);
+	/*imshow("Blurred", blurred);
+	waitKey(100000);
+	destroyAllWindows();*/
+	//imwrite("blurred.jpg", blurred);
 
 	Mat redROI, redROI1, blueROI, greenROI, yellowROI;
 	inRange(blurred, 0, REDSUP / 2, redROI); //Color rojo
@@ -650,33 +690,23 @@ void Detector::detection(Mat & m, Mat &n) {
 	inRange(blurred, YELLOWINF / 2, YELLOWSUP / 2, yellowROI); //Color amarillo
 	redROI = redROI | redROI1;
 
-	//GaussianBlur(colorROI, blurred, Size(3, 3), 0, 0);
-	//blur(colorROI, blurred, Size(3, 3));
-	//medianBlur(colorROI, blurred, medianCoeff);
-	/*imshow("Blurred", blurred);
-	waitKey(100000);
-	destroyAllWindows();*/
-	//imwrite("blurred.jpg", blurred);
 	
 	/*imshow("R", redROI);
 	waitKey(10000);
-	destroyAllWindows();
-	imshow("B", blueROI);
+	destroyAllWindows();*/
+	//imwrite("segRojo.jpg", redROI);
+	/*imshow("B", blueROI);
 	waitKey(10000);
 	destroyAllWindows();*/
-	//imwrite("zeroC.jpg", zero);
+	//imwrite("segAzul.jpg", blueROI);
 	/*imshow("G", greenROI);
 	waitKey(10000);
 	destroyAllWindows();*/
-	//imwrite("thirtyC.jpg", thirty);
+	//imwrite("segVerde.jpg", greenROI);
 	/*imshow("Y", yellowROI);
 	waitKey(10000);
 	destroyAllWindows();*/
-	//imwrite("fortyFiveC.jpg", fortyFive);
-	/*imshow("COLOR", sixty);
-	waitKey(1000);
-	destroyAllWindows();*/
-	//imwrite("sixtyC.jpg", sixty);
+	//imwrite("segAmarillo.jpg", yellowROI);
 	
 	
 	//Hacer los template matching
@@ -687,68 +717,68 @@ void Detector::detection(Mat & m, Mat &n) {
 	///Bloques rojos
 	vector <Point> highProbRedPoints, lowProbRedPoints;
 	Canny(redROI, gref, lowCanny, lowCanny * ratio);
+	//imwrite("rojoCanny.jpg", gref);
 
 	templateMatching(gref, zero, highProbRedPoints, lowProbRedPoints);
 	templateMatching(gref, thirty, highProbRedPoints, lowProbRedPoints);
 	templateMatching(gref, fortyFive, highProbRedPoints, lowProbRedPoints);
 	templateMatching(gref, sixty, highProbRedPoints, lowProbRedPoints);
 
-	colorClassifier(colorROI, highProbRedPoints, highProbBlocks);
-	colorClassifier(colorROI, lowProbRedPoints, lowProbBlocks);
+	if (highProbRedPoints.size() != 0) colorClassifier(colorROI, highProbRedPoints, highProbBlocks);
+	if (lowProbRedPoints.size() != 0) colorClassifier(colorROI, lowProbRedPoints, lowProbBlocks);
 
 	///Bloques azules
 	vector <Point> highProbBluePoints, lowProbBluePoints;
 	Canny(blueROI, gref, lowCanny, lowCanny * ratio);
+	//imwrite("azulCanny.jpg", gref);
 
 	templateMatching(gref, zero, highProbBluePoints, lowProbBluePoints);
 	templateMatching(gref, thirty, highProbBluePoints, lowProbBluePoints);
 	templateMatching(gref, fortyFive, highProbBluePoints, lowProbBluePoints);
 	templateMatching(gref, sixty, highProbBluePoints, lowProbBluePoints);
 
-	colorClassifier(colorROI, highProbBluePoints, highProbBlocks);
-	colorClassifier(colorROI, lowProbBluePoints, lowProbBlocks);
+	if (highProbBluePoints.size() != 0) colorClassifier(colorROI, highProbBluePoints, highProbBlocks);
+	if (lowProbBluePoints.size() != 0) colorClassifier(colorROI, lowProbBluePoints, lowProbBlocks);
 
 	///Bloques verdes
 	vector <Point> highProbGreenPoints, lowProbGreenPoints;
 	Canny(greenROI, gref, lowCanny, lowCanny * ratio);
+	//imwrite("verdeCanny.jpg", gref);
 
 	templateMatching(gref, zero, highProbGreenPoints, lowProbGreenPoints);
 	templateMatching(gref, thirty, highProbGreenPoints, lowProbGreenPoints);
 	templateMatching(gref, fortyFive, highProbGreenPoints, lowProbGreenPoints);
 	templateMatching(gref, sixty, highProbGreenPoints, lowProbGreenPoints);
 
-	colorClassifier(colorROI, highProbGreenPoints, highProbBlocks);
-	colorClassifier(colorROI, lowProbGreenPoints, lowProbBlocks);
+	if (highProbGreenPoints.size() != 0) colorClassifier(colorROI, highProbGreenPoints, highProbBlocks);
+	if (lowProbGreenPoints.size() != 0) colorClassifier(colorROI, lowProbGreenPoints, lowProbBlocks);
 
 	///Bloques amarillos
 	vector <Point> highProbYellowPoints, lowProbYellowPoints;
 	Canny(yellowROI, gref, lowCanny, lowCanny * ratio);
+	//imwrite("amarilloCanny.jpg", gref);
 
 	templateMatching(gref, zero, highProbYellowPoints, lowProbYellowPoints);
 	templateMatching(gref, thirty, highProbYellowPoints, lowProbYellowPoints);
 	templateMatching(gref, fortyFive, highProbYellowPoints, lowProbYellowPoints);
 	templateMatching(gref, sixty, highProbYellowPoints, lowProbYellowPoints);
 
-	colorClassifier(colorROI, highProbYellowPoints, highProbBlocks);
-	colorClassifier(colorROI, lowProbYellowPoints, lowProbBlocks);
+	if (highProbYellowPoints.size() != 0) colorClassifier(colorROI, highProbYellowPoints, highProbBlocks);
+	if (lowProbYellowPoints.size() != 0) colorClassifier(colorROI, lowProbYellowPoints, lowProbBlocks);
 	
-	/*imshow("file", gref);
-	waitKey(100000);
-	destroyAllWindows();*/
-	//imwrite("canny.jpg", gref);
 
 	//Eliminar posiciones redundantes
 	vector <Block> detectedBlocks, probablyBlocks;
 	///Ordenar primero los vectores para facilitar su comparación
 	//std::sort(highProbPoints.begin(), highProbPoints.end(), [](Point const &l, Point const &r) { return l.x < r.x; });
 	//std::sort(lowProbPoints.begin(), lowProbPoints.end(), [](Point const &l, Point const &r) { return l.x < r.x; });
+	if ((highProbBlocks.size() != 0) && (lowProbBlocks.size() != 0)) {
+		///Bucle para el primer vector
+		bool coincidence = 0;
+		int size, size1 = highProbBlocks.size();
+		detectedBlocks.push_back(highProbBlocks[0]);
+		for (int i = 1; i < size1; i++) {
 
-	///Bucle para el primer vector
-	bool coincidence = 0;
-	int size, size1 = highProbBlocks.size();
-	detectedBlocks.push_back(highProbBlocks[0]);
-	for (int i = 1; i < size1; i++) {
-		
 			size = detectedBlocks.size();
 			for (int j = 0; j < size; j++) {
 				if ((abs(highProbBlocks[i].getPos().x - detectedBlocks[j].getPos().x) < distanceBetweenBlocks) && (abs(highProbBlocks[i].getPos().y - detectedBlocks[j].getPos().y) < distanceBetweenBlocks)) {
@@ -757,14 +787,14 @@ void Detector::detection(Mat & m, Mat &n) {
 			}
 			if (coincidence == 0) {
 				detectedBlocks.push_back(highProbBlocks[i]);
-			}	
+			}
 			coincidence = 0;
-	}
-	///Bucle para el segundo vector
-	coincidence = 0;
-	size1 = lowProbBlocks.size();
-	probablyBlocks.push_back(lowProbBlocks[0]);
-	for (int i = 1; i < size1; i++) {
+		}
+		///Bucle para el segundo vector
+		coincidence = 0;
+		size1 = lowProbBlocks.size();
+		probablyBlocks.push_back(lowProbBlocks[0]);
+		for (int i = 1; i < size1; i++) {
 
 			size = probablyBlocks.size();
 			for (int j = 0; j < size; j++) {
@@ -776,58 +806,62 @@ void Detector::detection(Mat & m, Mat &n) {
 				probablyBlocks.push_back(lowProbBlocks[i]);
 			}
 			coincidence = 0;
-	}
-
-	///Comprobar la validez de los puntos del segundo vector
-	coincidence = 0;
-	size1 = probablyBlocks.size();
-	for (int i = 0; i < size1; i++) {
-
-		size = detectedBlocks.size();
-		for (int j = 0; j < size; j++) {
-			if ((abs(detectedBlocks[j].getPos().x - probablyBlocks[i].getPos().x) < distanceBetweenBlocks) && (abs(detectedBlocks[j].getPos().y - probablyBlocks[i].getPos().y) < distanceBetweenBlocks)) {
-				coincidence = 1;
-			}
 		}
-		if (coincidence == 0) {//El bloque se encontraba en una posición rotada ligeramente respecto a las de las plantillas y no ha producido una detección perfecta. Hay que añadirlo
-			detectedBlocks.push_back(probablyBlocks[i]);
-		}
+
+		///Comprobar la validez de los puntos del segundo vector
 		coincidence = 0;
+		size1 = probablyBlocks.size();
+		for (int i = 0; i < size1; i++) {
+
+			size = detectedBlocks.size();
+			for (int j = 0; j < size; j++) {
+				if ((abs(detectedBlocks[j].getPos().x - probablyBlocks[i].getPos().x) < distanceBetweenBlocks) && (abs(detectedBlocks[j].getPos().y - probablyBlocks[i].getPos().y) < distanceBetweenBlocks)) {
+					coincidence = 1;
+				}
+			}
+			if (coincidence == 0) {//El bloque se encontraba en una posición rotada ligeramente respecto a las de las plantillas y no ha producido una detección perfecta. Hay que añadirlo
+				detectedBlocks.push_back(probablyBlocks[i]);
+			}
+			coincidence = 0;
+		}
 	}
 
 	//Comprobación de la profundidad de las detecciones -> adición de cubos apilados
 	Point translatedPoint;
 	vector <Block> blocksVector;
-	//Block block;
-	redBlocks = 0; 
-	greenBlocks = 0;
-	blueBlocks = 0; 
-	yellowBlocks = 0; 
-	blackBlocks = 0;
-	size = detectedBlocks.size();
-	for (int j = 0; j < size; j++) {
-		blocksVector.push_back(detectedBlocks[j]);
-		translatedPoint.x = detectedBlocks[j].getPos().x + 21 + 22 /** FXINV*/;//La primera cifra es la interpolación de una imagen a otra. La segunda para colocarnos en el centro del cubo
-		translatedPoint.y = detectedBlocks[j].getPos().y + 22 /** FYINV*/;
-		int height = depthROI.at<uchar>(translatedPoint);
-		emptyDepth = emptyBoxROI.at<uchar>(translatedPoint);
-		if (emptyDepth - height > 50) {//Pila de al menos 2 bloques -> Añadimos un bloque negro 
-			block.setColor(0);
-			block.setPos(detectedBlocks[j].getPos());
-			block.setSize(24);
-			blocksVector.push_back(block);
-			blackBlocks++;
+	int size;
+	if (detectedBlocks.size() != 0) {
+		//Block block;
+		redBlocks = 0;
+		greenBlocks = 0;
+		blueBlocks = 0;
+		yellowBlocks = 0;
+		blackBlocks = 0;
+		size = detectedBlocks.size();
+		for (int j = 0; j < size; j++) {
+			blocksVector.push_back(detectedBlocks[j]);
+			translatedPoint.x = detectedBlocks[j].getPos().x + 21 + 22 /** FXINV*/;//La primera cifra es la interpolación de una imagen a otra. La segunda para colocarnos en el centro del cubo
+			translatedPoint.y = detectedBlocks[j].getPos().y + 22 /** FYINV*/;
+			int height = depthROI.at<uchar>(translatedPoint);
+			emptyDepth = emptyBoxROI.at<uchar>(translatedPoint);
+			if (emptyDepth - height > 50) {//Pila de al menos 2 bloques -> Añadimos un bloque negro 
+				block.setColor(0);
+				block.setPos(detectedBlocks[j].getPos());
+				block.setSize(24);
+				blocksVector.push_back(block);
+				blackBlocks++;
+			}
+			if (emptyDepth - height > 70) {//Pila de al menos 3 bloques -> Añadimos otro bloque negro
+				block.setColor(0);
+				block.setPos(detectedBlocks[j].getPos());
+				block.setSize(26);
+				blocksVector.push_back(block);
+				blackBlocks++;
+			}
+			
 		}
-		if (emptyDepth - height > 70) {//Pila de al menos 3 bloques -> Añadimos otro bloque negro
-			block.setColor(0);
-			block.setPos(detectedBlocks[j].getPos());
-			block.setSize(26);
-			blocksVector.push_back(block);
-			blackBlocks++;
-		}
-	}	
-	
 
+	}
 	//Representación en la imagen
 	int tempColor, rectSize;
 	Scalar drawingColor;
@@ -879,7 +913,7 @@ void Detector::setZero(Mat &m) {
 	cvtColor(zero, zero, CV_BGR2GRAY);
 	bilateralFilter(zero, blurred, blurCoeff1, blurCoeff1 * 2, blurCoeff1 / 2);
 	Canny(blurred, zero, lowCanny, lowCanny * 2);
-
+	//imwrite("zeroCanny.jpg", zero);
 };
 
 void Detector::setThirty(Mat &m) {
@@ -888,7 +922,7 @@ void Detector::setThirty(Mat &m) {
 	cvtColor(thirty, thirty, CV_BGR2GRAY);
 	bilateralFilter(thirty, blurred, blurCoeff1, blurCoeff1 * 2, blurCoeff1 / 2);
 	Canny(blurred, thirty, lowCanny, lowCanny * 2);
-	
+	//imwrite("thirtyCanny.jpg", thirty);
 };
 
 void Detector::setFortyFive(Mat &m) { 
@@ -897,7 +931,7 @@ void Detector::setFortyFive(Mat &m) {
 	cvtColor(fortyFive, fortyFive, CV_BGR2GRAY);
 	bilateralFilter(fortyFive, blurred, blurCoeff1, blurCoeff1 * 2, blurCoeff1 / 2);
 	Canny(fortyFive, fortyFive, lowCanny, lowCanny * 2);
-	
+	//imwrite("fortyCanny.jpg", fortyFive);
 };
 
 void Detector::setSixty(Mat &m) { 
@@ -906,6 +940,7 @@ void Detector::setSixty(Mat &m) {
 	cvtColor(sixty, sixty, CV_BGR2GRAY);
 	bilateralFilter(sixty, blurred, blurCoeff1, blurCoeff1 * 2, blurCoeff1 / 2);
 	Canny(blurred, sixty, lowCanny, lowCanny * 2);
+	//imwrite("sixtyCanny.jpg", sixty);
 };
 
 

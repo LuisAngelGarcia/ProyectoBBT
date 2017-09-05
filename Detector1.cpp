@@ -53,7 +53,7 @@ void Detector::updateDepth(Mat &m) {
 	depth.update(m);
 };
 
-void Detector::locateBoxes(Mat &m) {
+void Detector::locateBoxes(Mat &m, Mat &n) {
 
 	Mat rangeOutput;
 	vector<vector<Point> > contours;
@@ -183,7 +183,39 @@ void Detector::locateBoxes(Mat &m) {
 		boxRect = Rect(p2, br);
 		emptyDepth = m.at<uchar>(centroid1);
 	}
+	//Determinar frontera entre amarillo y fondo
+	Point center;
+	Mat colorHSV(1080, 1920, CV_32FC4);
+	Mat colorH;
+	Mat planes[4];
+	Vec3b a;
+	float values[5];
+
+	//Posicionar el centroide en la imagen de color
+	if (emptyBoxFlag == 0) center = Point((centroid2.x * FX) + 255, (centroid2.y * FY) - 62);
+	else center = Point((centroid1.x * FX) + 218, (centroid1.y * FY) - 62);
+
+	//Lectura de los colores del fondo
+	cvtColor(n, colorHSV, CV_BGR2HSV);
 	
+	a = colorHSV.at<Vec3b>(center);
+	values[0] = a[0];
+	a = colorHSV.at<Vec3b>(Point(center.x - 150, center.y - 150));
+	values[1] = a[0];
+	a = colorHSV.at<Vec3b>(Point(center.x - 150, center.y + 150));
+	values[2] = a[0];
+	a = colorHSV.at<Vec3b>(Point(center.x + 150, center.y - 150));
+	values[3] = a[0];
+	a = colorHSV.at<Vec3b>(Point(center.x + 150, center.y + 150));
+	values[4] = a[0];
+	//Hallar valor máximo
+	float maxval;
+	maxval = (*max_element(values, values + 4)) * 2;
+	if ((maxval < 45) && (maxval < 55)) {
+		BACKGROUNDSUP = maxval - 1;
+		YELLOWINF = BACKGROUNDSUP + 0.5;
+	}
+	//cout << maxval;
 	//Mostrar compartimento
 	
 	
@@ -192,9 +224,10 @@ void Detector::locateBoxes(Mat &m) {
 	imshow("Box", m);
 	waitKey(100000);
 	destroyAllWindows();
-	//imwrite("localizacionCajas.jpg", m);
+	imwrite("localizacionCajas.jpg", m);
 
 };
+
 
 void Detector::correctBoxesPosition(Mat &m) {
 
@@ -302,14 +335,12 @@ void Detector::correctBoxesPosition(Mat &m) {
 };
 
 
-void Detector::detectHand(Mat &m){
+void Detector::detectHand(Mat &m, bool a){
 	Mat temp, dst;
-	handDetected=0;
 	dst= Scalar::all(0);
 	temp = m(divisorRect.boundingRect());
 	float tempMean = mean(temp)[0];
 	static int cont=0;
-	//int threshold = handROI.cols * handROI.rows * 0.072;//Considerar el paso de la mano si hay diferencias en un 7% de los píxeles de la Región de Interés
 	/*
 	imshow("TEMP", temp);
 	waitKey(100000);
@@ -319,18 +350,37 @@ void Detector::detectHand(Mat &m){
 	destroyAllWindows();
 	*/
 	
-
-	if ((abs(tempMean - handROImean)) > 50) {
+	if (a==0){
+		handDetected = 0;
+		if ((abs(tempMean - handROImean)) > 50) {
 		cont++;
 		if (cont > 5){
 			
 			cont = 0;
-			Sleep(300);
+			Sleep(40);
 			handDetected = 1;
-			//imwrite("tempROI.jpg", temp);
+			//imwrite("tempROIIn.jpg", temp);
 			//imwrite("handROI.jpg", handROI);
 		}
 	}
+
+	}
+	else{
+		handDetected = 1;
+		if ((abs(tempMean - handROImean)) < 50) {
+		cont++;
+		if (cont > 5){
+			
+			cont = 0;
+			Sleep(40);
+			handDetected = 0;
+			//imwrite("tempROIOut.jpg", temp);
+			//imwrite("handROI.jpg", handROI);
+		}
+	}
+
+	}
+	
 };
 
 
@@ -460,20 +510,21 @@ void Detector::templateMatching(Mat &m, Mat &t, vector<Point> &a, vector<Point> 
 	//waitKey(0);
 
 };
+
 void Detector::colorClassifier(Mat &roi, vector<Point> &src, vector<Block> &dst) {
 	//Comprobación del color del posible cubo del vector de detecciones seguras usando segmentación por HSV
 	Vec4b color, color1, color2, color3, color4;
-	float hue;
+	float hue, sat;
 	float r, g, b, max, min;
 	float mR, mG, mB;
 	int size = src.size();
 
 	for (int j = 0; j < size; j++) {
 		color = roi.at<Vec4b>(Point(src[j].x + 22, src[j].y + 22)); //Coger el color del centro del cubo
-		color1 = roi.at<Vec4b>(Point(src[j].x + 22, src[j].y + 27)); //Coger el color justo encima del centro del cubo
-		color2 = roi.at<Vec4b>(Point(src[j].x + 22, src[j].y + 17)); //Coger el color justo debajo del centro del cubo
-		color3 = roi.at<Vec4b>(Point(src[j].x + 27, src[j].y + 22)); //Coger el color justo a la derecha del centro del cubo
-		color4 = roi.at<Vec4b>(Point(src[j].x + 17, src[j].y + 22)); //Coger el color justo a la izquierda del centro del cubo
+		color1 = roi.at<Vec4b>(Point(src[j].x + 22, src[j].y + 29)); //Coger el color justo encima del centro del cubo
+		color2 = roi.at<Vec4b>(Point(src[j].x + 22, src[j].y + 15)); //Coger el color justo debajo del centro del cubo
+		color3 = roi.at<Vec4b>(Point(src[j].x + 29, src[j].y + 22)); //Coger el color justo a la derecha del centro del cubo
+		color4 = roi.at<Vec4b>(Point(src[j].x + 15, src[j].y + 22)); //Coger el color justo a la izquierda del centro del cubo
 
 		///Cálculo de la media de los píxeles adyacentes al centro
 		mR = (color1.val[2] + color2.val[2] + color3.val[2] + color4.val[2]) / 4;
@@ -506,12 +557,14 @@ void Detector::colorClassifier(Mat &roi, vector<Point> &src, vector<Block> &dst)
 			if (r > g) min = g;
 			hue = (60 * ((r - g) / (max - min))) + 240;
 		}
+		else hue = 39;
 
+		sat = max - min;
 
 		//Discriminación por colores y adición al vector de cubos, con color y posición
 		Block block;
 		if((abs(r - mR) < 5)&&((abs(g - mG) < 5))&&((abs(b - mB) < 5))){
-			if (!((hue>BACKGROUNDINF) && (hue<BACKGROUNDSUP))) { //No es fondo
+			if (!((hue>BACKGROUNDINF) && (hue<BACKGROUNDSUP) && (sat<50))) { //No es fondo
 				if ((hue>REDINF) || (hue<REDSUP)) { //Rojo
 					block.setColor(1);
 					block.setPos(src[j]);
@@ -531,7 +584,7 @@ void Detector::colorClassifier(Mat &roi, vector<Point> &src, vector<Block> &dst)
 					dst.push_back(block);
 				}
 
-				else if ((hue>YELLOWINF) && (hue<YELLOWSUP)) { //Amarillo
+				else if (((hue>YELLOWINF) && (hue<YELLOWSUP)) || ((hue>BACKGROUNDINF) && (hue<BACKGROUNDSUP) && (sat>50))) { //Amarillo
 					block.setColor(4);
 					block.setPos(src[j]);
 					block.setSize(22);
@@ -550,6 +603,7 @@ void Detector::colorClassifier(Mat &roi, vector<Point> &src, vector<Block> &dst)
 	}
 
 }
+
 void Detector::detection(Mat & m, Mat &n) {
 	//Agrandar y recolocar el rectángulo del compartimento vacío
 

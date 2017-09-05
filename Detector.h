@@ -88,7 +88,7 @@ public:
 	void updateDepth(Mat &m); //coge una imagen de profundidad
 
 	//Cálculos iniciales
-	void locateBoxes(Mat &m); //Posicionamiento inicial de la caja y la pantalla
+	void locateBoxes(Mat &m, Mat &n); //Posicionamiento inicial de la caja y la pantalla
 	void correctBoxesPosition(Mat &m); //Reposicionamiento de la caja y la pantalla si el paciente las mueve
 	void setCoefs(Mat &m); //Fija los coeficientes para el white-patch (sin uso actual)
 
@@ -97,7 +97,6 @@ public:
 
 	//Transformaciones de la imagen
 	void whitePatchTransf (Mat &m); //Transformación White-patch para disminuir la influencia de la luz ambiental (sin uso actual)
-	//void HSVtransf(Mat &m); //posible implementaci�n si el white-patch no va muy all�
 
 	//�lgoritmo de detecci�n
 	void detection(Mat &m, Mat &n); //Método principal de la detección. Se encarga de la extracción de características y candidatos y de la clasificación en cascada

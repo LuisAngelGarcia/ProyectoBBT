@@ -61,7 +61,7 @@ int main(void) {
 	Mat t3 = imread("fortyfive.jpg", IMREAD_UNCHANGED);
 	Mat t4 = imread("sixty.jpg", IMREAD_UNCHANGED);
 	if (t1.empty() || t2.empty() || t3.empty() || t4.empty()){
-		std::cout << "Error reading file(s)!" << endl;
+		std::cout << "Las imágenes no fueron leídas correctamente" << endl;
 		return 0;
 	}
 	
@@ -92,7 +92,7 @@ int main(void) {
 					waitKey(100000);
 					destroyAllWindows();*/
 					//imwrite("ProfundidadCompleta.jpg", bufferDepthMat);
-					detector.locateBoxes(bufferDepthMat);//Localizar los compartimentos y la pantalla divisoria
+					//detector.locateBoxes(bufferDepthMat);//Localizar los compartimentos y la pantalla divisoria
 					a = 1;
 				}	
 				if (detector.getColorCaptured() && b==0) {
@@ -105,6 +105,7 @@ int main(void) {
 				}
 				}while (a == 0 || b == 0);
 
+			detector.locateBoxes(bufferDepthMat, bufferColorMat);//Localizar los compartimentos y la pantalla divisoria
 			cout<< zz << "Se han posicionado correctamente la caja y el divisor\? Si la localizaci" << y << "n ha sido correcta, pulse s. En caso de no ser as" << x << ", mueva ligeramente la caja y pulse la letra n. S" << x << ",No [s,n]"<<endl;
 			cin>>answer;
 			//cout << answer<< endl;
@@ -128,7 +129,7 @@ int main(void) {
 				do {
 					detector.updateDepth(bufferDepthMat2);
 					if (detector.getDepthCaptured()) {
-						detector.detectHand(bufferDepthMat2, 0);//Llamar a la detección de entrada de mano
+						detector.detectHand(bufferDepthMat2, 0);
 						/*imshow("PROFUNDIDAD", bufferDepthMat2);
 						waitKey(100000);
 						destroyAllWindows();*/
@@ -139,7 +140,7 @@ int main(void) {
 				do {
 					detector.updateDepth(bufferDepthMat2);
 					if (detector.getDepthCaptured()) {
-						detector.detectHand(bufferDepthMat2, 1);//Llamar a la detección de salida de mano
+						detector.detectHand(bufferDepthMat2, 1);
 						/*imshow("PROFUNDIDAD", bufferDepthMat2);
 						waitKey(100000);
 						destroyAllWindows();*/
@@ -189,6 +190,8 @@ int main(void) {
 					detector.updateDepth(bufferDepthMat3);
 				} while (detector.getDepthCaptured() == 0);
 
+				//imwrite("colorCompleta.jpg", bufferColorMat);
+				//imwrite("profundidadCompleta.jpg", bufferColorMat);
 				
 				Size dsize = Size(1506, 1206);
 				resize(bufferDepthMat3, resizedDepth, dsize, 0, 0);
@@ -212,7 +215,7 @@ int main(void) {
 	colors[3] = detector.getYellow();
 	colors[4] = detector.getBlack();
 
-	if ((abs(h - c)) > 4){
+	if ((abs(h - c)) > 0){
 		cout << "Espere un momento mientras se realizan unas " << z << "ltimas comprobaciones" << endl;
 		
 		for (int i = 0; i < 5; i++){
