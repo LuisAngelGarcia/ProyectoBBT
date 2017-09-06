@@ -1,5 +1,9 @@
-// ProyectoBBT.cpp : Defines the entry point for the console application.
-
+/*********************************************************/
+//SISTEMA DE ENSAYO DE CAJA Y CUBOS AUTOMATIZADO (ABBT)//
+	    //Luis Ángel García Astudillo// 
+  //Grado en Ingeniería en Tecnologías Industriales//
+         //Universidad Carlos III de Madrid//
+/********************************************************/
 
 #ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS
