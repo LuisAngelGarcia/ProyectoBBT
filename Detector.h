@@ -1,3 +1,10 @@
+/*********************************************************/
+//SISTEMA DE ENSAYO DE CAJA Y CUBOS AUTOMATIZADO (ABBT)//
+	    //Luis Ángel García Astudillo// 
+  //Grado en Ingeniería en Tecnologías Industriales//
+         //Universidad Carlos III de Madrid//
+/********************************************************/
+
 #include "ColorBasics.h"
 #include "DepthBasics.h"
 #include <opencv2/opencv.hpp>
