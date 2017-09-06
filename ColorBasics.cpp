@@ -1,8 +1,9 @@
-//------------------------------------------------------------------------------
-// <copyright file="ColorBasics.cpp" company="Microsoft">
-//     Copyright (c) Microsoft Corporation.  All rights reserved.
-// </copyright>
-//------------------------------------------------------------------------------
+/*********************************************************/
+//SISTEMA DE ENSAYO DE CAJA Y CUBOS AUTOMATIZADO (ABBT)//
+	    //Luis Ángel García Astudillo// 
+  //Grado en Ingeniería en Tecnologías Industriales//
+         //Universidad Carlos III de Madrid//
+/********************************************************/
 
 #include "stdafx.h"
 #include <strsafe.h>
