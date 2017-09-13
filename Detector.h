@@ -25,7 +25,8 @@ class Detector {
 	Mat zero, thirty, fortyFive, sixty;
 
 	//Constantes
-	float coefR, coefG, coefB;
+	float coefR, coefG, coefB; //Variables para el White-patch
+	const float coef = 0.75;
 	int emptyDepth;
 	float handROImean;
 
@@ -34,6 +35,7 @@ class Detector {
 	bool emptyBoxFlag=0; //0 -> Derecho, 1 -> Izquierdo (desde el punto de vista del paciente)
 	bool first = 1;
 	bool end = 0;
+	bool ambientLight = 1;
 
 	//ROIs
 	RotatedRect divisorRect;
@@ -76,6 +78,7 @@ public:
 	int getBlue(){return blueBlocks;}
 	int getYellow(){return yellowBlocks;}
 	int getBlack(){return blackBlocks;}
+	bool getLight(){ return ambientLight; }
 
 	//Setters
 	void increaseHandDetected() { handDetections++; };
@@ -104,6 +107,7 @@ public:
 
 	//Transformaciones de la imagen
 	void whitePatchTransf (Mat &m); //Transformación White-patch para disminuir la influencia de la luz ambiental (sin uso actual)
+	void darkenImage(Mat &m); //Transformación para oscurecer la imagen si la luz es demasiado directa (produce fallos en la detección de cubos amarillos)
 
 	//�lgoritmo de detecci�n
 	void detection(Mat &m, Mat &n); //Método principal de la detección. Se encarga de la extracción de características y candidatos y de la clasificación en cascada

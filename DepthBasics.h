@@ -18,8 +18,8 @@ using namespace std;
 class CDepthBasics{
 
     //Parámetros de la imagen
-	const int cDepthWidth = 512;
-	const int cDepthHeight = 424;
+	static const int cDepthWidth = 512;
+	static const int cDepthHeight = 424;
 	bool imageCaptured = 0;
 
 public:

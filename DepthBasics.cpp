@@ -99,7 +99,6 @@ void CDepthBasics::update(Mat &m){
 				for (UINT i = 0; i < nBufferSize; i++) {
 					depthB = pBuffer[i];
 					m.at<UINT8>(i) = LOWORD(depthB);
-					//m.at<USHORT16>(i) = depthB;
 				}
 			
 			}

@@ -13,7 +13,13 @@
 
 using namespace cv;
 
-CColorBasics::CColorBasics() :m_fFreq(0), m_pKinectSensor(NULL), m_pColorFrameReader(NULL), m_pColorRGBX(NULL) {
+CColorBasics::CColorBasics() :
+
+    m_fFreq(0),
+    m_pKinectSensor(NULL),
+    m_pColorFrameReader(NULL),
+    m_pColorRGBX(NULL)
+{
     LARGE_INTEGER qpf = {0};
     if (QueryPerformanceFrequency(&qpf)){
         m_fFreq = double(qpf.QuadPart);

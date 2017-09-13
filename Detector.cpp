@@ -25,10 +25,13 @@
 #define GREENSUP 158.0
 #define BLUEINF 195.0
 #define BLUESUP 242.0
-float YELLOWINF = 52.0;
+#define YELLOWINF 50.0
 #define YELLOWSUP 73.0
 #define BACKGROUNDINF 23.0
-float BACKGROUNDSUP = 51.0;
+#define BACKGROUNDSUP 49.9
+//float BACKGROUNDSUP = 53.0;
+//float  YELLOWINF = 53.1;
+
 //Parámetros de ajuste
 const float T1 = 0.75, T2 = 0.45; //T1 -> umbral de detecciones seguras, T2 -> umbral de detecciones menos probables
 const char distanceBetweenBlocks = 20; //Distancia mínima entre dos detecciones para no ser descartadas (en X y en Y)
@@ -218,11 +221,12 @@ void Detector::locateBoxes(Mat &m, Mat &n) {
 	//Hallar valor máximo
 	float maxval;
 	maxval = (*max_element(values, values + 4)) * 2;
-	if ((maxval < 45) && (maxval < 55)) {
-		BACKGROUNDSUP = maxval - 1;
-		YELLOWINF = BACKGROUNDSUP + 0.5;
+	if (maxval < 51) {
+		ambientLight = 0;
 	}
-	//cout << maxval;
+	cout <<endl<< "La luz detectada es ";
+	if (ambientLight == 0) cout<<"baja"<<endl;
+	else cout<<"alta"<<endl;
 	//Mostrar compartimento
 	
 	
@@ -231,7 +235,7 @@ void Detector::locateBoxes(Mat &m, Mat &n) {
 	imshow("Box", m);
 	waitKey(100000);
 	destroyAllWindows();
-	imwrite("localizacionCajas.jpg", m);
+	//imwrite("localizacionCajas.jpg", m);
 
 };
 
@@ -285,7 +289,7 @@ void Detector::correctBoxesPosition(Mat &m) {
 
 	for (int i = 0; i < contours1.size(); i++){
 		minRect1 = minAreaRect(Mat(contours1[i]));
-		if ((minRect1.center.x > 210) && (minRect1.center.x < 300) && (minRect1.center.y > 140) && (minRect1.center.y < 285)) {//La caja tiene que estar más o menos centrado
+		if ((minRect1.center.x > 210) && (minRect1.center.x < 300) && (minRect1.center.y > 140) && (minRect1.center.y < 285) && (minRect1.size.height < 450)) {//La caja tiene que estar más o menos centrado
 			if (minRect1.size.width > temp.size.width) {//Comprobación de tamaño
 				temp = minRect1;
 			}
@@ -358,7 +362,7 @@ void Detector::detectHand(Mat &m, bool a){
 	
 	if (a==0){
 		handDetected = 0;
-		if ((abs(tempMean - handROImean)) > 50) {
+		if ((abs(tempMean - handROImean)) > 40) {
 		cont++;
 		if (cont > 5){
 			
@@ -373,7 +377,7 @@ void Detector::detectHand(Mat &m, bool a){
 	}
 	else{
 		handDetected = 1;
-		if ((abs(tempMean - handROImean)) < 50) {
+		if ((abs(tempMean - handROImean)) < 40) {
 		cont++;
 		if (cont > 5){
 			
@@ -442,12 +446,22 @@ imshow("R", planes[2]);
 waitKey(100000);
 destroyAllWindows();
 */
-planes[0] = planes[0] * coefB;
+planes[0] = planes[0] * coefR;
 planes[1] = planes[1] * coefG;
-planes[2] = planes[2] * coefR;
+planes[2] = planes[2] * coefB;
 
 merge(planes, 4, m);
 
+};
+
+void Detector::darkenImage(Mat &m){
+Mat planes[4];
+split(m, planes);
+planes[0] = planes[0] * coef;
+planes[1] = planes[1] * coef;
+planes[2] = planes[2] * coef;
+
+merge(planes, 4, m);
 };
 
 void Detector::templateMatching(Mat &m, Mat &t, vector<Point> &a, vector<Point> &b) {
@@ -519,8 +533,8 @@ void Detector::templateMatching(Mat &m, Mat &t, vector<Point> &a, vector<Point> 
 void Detector::colorClassifier(Mat &roi, vector<Point> &src, vector<Block> &dst) {
 	//Comprobación del color del posible cubo del vector de detecciones seguras usando segmentación por HSV
 	Vec4b color, color1, color2, color3, color4;
-	float hue, sat;
-	float r, g, b, max, min;
+	float hue, sat=0;
+	float r, g, b, max=0, min=1;
 	float mR, mG, mB;
 	int size = src.size();
 
@@ -553,7 +567,7 @@ void Detector::colorClassifier(Mat &roi, vector<Point> &src, vector<Block> &dst)
 		else if ((g > r) && (g > b)) {
 			max = g;
 			min = r;
-			if (r>b) min = b;
+			if (r > b) min = b;
 			hue = (60 * ((b - r) / (max - min))) + 120;
 		}
 		else if ((b > r) && (b > g)) {
@@ -563,13 +577,12 @@ void Detector::colorClassifier(Mat &roi, vector<Point> &src, vector<Block> &dst)
 			hue = (60 * ((r - g) / (max - min))) + 240;
 		}
 		else hue = 39;
-
-		sat = max - min;
+		//sat =  (1 - (min/max)) * 100.0;
 
 		//Discriminación por colores y adición al vector de cubos, con color y posición
 		Block block;
-		if((abs(r - mR) < 5)&&((abs(g - mG) < 5))&&((abs(b - mB) < 5))){
-			if (!((hue>BACKGROUNDINF) && (hue<BACKGROUNDSUP) && (sat<50))) { //No es fondo
+		if((abs(r - mR) < 5)&&(abs(g - mG) < 5)&&(abs(b - mB) < 5)){
+			if (!((hue>BACKGROUNDINF) && (hue<BACKGROUNDSUP))) { //No es fondo
 				if ((hue>REDINF) || (hue<REDSUP)) { //Rojo
 					block.setColor(1);
 					block.setPos(src[j]);
@@ -589,18 +602,18 @@ void Detector::colorClassifier(Mat &roi, vector<Point> &src, vector<Block> &dst)
 					dst.push_back(block);
 				}
 
-				else if (((hue>YELLOWINF) && (hue<YELLOWSUP)) || ((hue>BACKGROUNDINF) && (hue<BACKGROUNDSUP) && (sat>50))) { //Amarillo
+				else if (((hue>YELLOWINF) && (hue<YELLOWSUP))) { //Amarillo
 					block.setColor(4);
 					block.setPos(src[j]);
 					block.setSize(22);
 					dst.push_back(block);
 				}
-				else { //Color no determinado
+				/*else { //Color no determinado
 					block.setColor(0);
 					block.setPos(src[j]);
 					block.setSize(22);
 					dst.push_back(block);
-				}
+				}*/
 			}
 		}
 		
@@ -627,18 +640,18 @@ void Detector::detection(Mat & m, Mat &n) {
 
 	Rect emptyBoxColor;
 	if (emptyBoxFlag == 1) emptyBoxColor = Rect((topLeft.x * FX) + 255, (topLeft.y * FY) - 62, emptyBoxRect.width, emptyBoxRect.width);
-	else emptyBoxColor = Rect((topLeft.x * FX) + 218, (topLeft.y * FY) - 62, emptyBoxRect.width, emptyBoxRect.width);
+	else emptyBoxColor = Rect((topLeft.x * FX) + 238, (topLeft.y * FY) - 62, emptyBoxRect.width, emptyBoxRect.width);
 	emptyBoxColor.height = emptyBoxColor.height * FY;
 	emptyBoxColor.width = emptyBoxColor.width * FX;
 
-	rectangle(m, emptyBoxColor.tl(), emptyBoxColor.br(), (0,0,255), 2, 8, 0);
+	//rectangle(m, emptyBoxColor.tl(), emptyBoxColor.br(), (0,0,255), 2, 8, 0);
 	/*namedWindow("Color Box", CV_WINDOW_AUTOSIZE);
 	imshow("Color Box", m);
 	waitKey(100000);
 	destroyAllWindows();*/
 	//imwrite("colorRect.jpg", m);
 
-	rectangle(n, emptyBoxDepth.tl(), emptyBoxDepth.br(), (255, 255, 255), 1, 8, 0);
+	//rectangle(n, emptyBoxDepth.tl(), emptyBoxDepth.br(), (255, 255, 255), 1, 8, 0);
 	/*namedWindow("Depth Box", CV_WINDOW_AUTOSIZE);
 	imshow("Depth Box", n);
 	waitKey(100000);
@@ -783,8 +796,20 @@ void Detector::detection(Mat & m, Mat &n) {
 		///Bucle para el primer vector
 		bool coincidence = 0;
 		int size, size1 = highProbBlocks.size();
-		detectedBlocks.push_back(highProbBlocks[0]);
-		for (int i = 1; i < size1; i++) {
+		
+		int k = 0, limitx, limity;
+		bool fin = 0;
+		limity = 13; //Eliminar falsos positivos causados por el borde de la caja cuando ésta se encuentra desplazada
+		limitx = 13; 
+		do {
+			if (highProbBlocks[k].getPos().x < limitx || highProbBlocks[k].getPos().y < limity) k++;
+			else {
+				fin = 1;
+				detectedBlocks.push_back(highProbBlocks[k]);
+			}
+		} while (fin == 0);
+
+		for (int i = k + 1; i < size1; i++) {
 
 			size = detectedBlocks.size();
 			for (int j = 0; j < size; j++) {
@@ -792,7 +817,7 @@ void Detector::detection(Mat & m, Mat &n) {
 					coincidence = 1;
 				}
 			}
-			if (coincidence == 0) {
+			if ((coincidence == 0) && (highProbBlocks[i].getPos().y > limity)) {
 				detectedBlocks.push_back(highProbBlocks[i]);
 			}
 			coincidence = 0;
@@ -800,8 +825,18 @@ void Detector::detection(Mat & m, Mat &n) {
 		///Bucle para el segundo vector
 		coincidence = 0;
 		size1 = lowProbBlocks.size();
-		probablyBlocks.push_back(lowProbBlocks[0]);
-		for (int i = 1; i < size1; i++) {
+		
+		k = 0;
+		fin = 0;
+		do {
+			if (lowProbBlocks[k].getPos().x < limitx || lowProbBlocks[k].getPos().y < limity) k++;
+			else {
+				fin = 1;
+				probablyBlocks.push_back(lowProbBlocks[0]);
+			}
+		} while (fin == 0);
+
+		for (int i = k + 1; i < size1; i++) {
 
 			size = probablyBlocks.size();
 			for (int j = 0; j < size; j++) {
@@ -809,7 +844,7 @@ void Detector::detection(Mat & m, Mat &n) {
 					coincidence = 1;
 				}
 			}
-			if (coincidence == 0) {
+			if ((coincidence == 0) && (lowProbBlocks[i].getPos().y > limity)) {
 				probablyBlocks.push_back(lowProbBlocks[i]);
 			}
 			coincidence = 0;
@@ -846,26 +881,28 @@ void Detector::detection(Mat & m, Mat &n) {
 		blackBlocks = 0;
 		size = detectedBlocks.size();
 		for (int j = 0; j < size; j++) {
-			blocksVector.push_back(detectedBlocks[j]);
-			translatedPoint.x = detectedBlocks[j].getPos().x + 21 + 22 /** FXINV*/;//La primera cifra es la interpolación de una imagen a otra. La segunda para colocarnos en el centro del cubo
+			
+			translatedPoint.x = detectedBlocks[j].getPos().x + 18 + 22 /** FXINV*/;//La primera cifra es la interpolación de una imagen a otra. La segunda para colocarnos en el centro del cubo
 			translatedPoint.y = detectedBlocks[j].getPos().y + 22 /** FYINV*/;
 			int height = depthROI.at<uchar>(translatedPoint);
 			emptyDepth = emptyBoxROI.at<uchar>(translatedPoint);
-			if (emptyDepth - height > 50) {//Pila de al menos 2 bloques -> Añadimos un bloque negro 
-				block.setColor(0);
-				block.setPos(detectedBlocks[j].getPos());
-				block.setSize(24);
-				blocksVector.push_back(block);
-				blackBlocks++;
+			if (emptyDepth - height > 5) {//Eliminar falsos positivos en el fondo
+				blocksVector.push_back(detectedBlocks[j]);
+				if (emptyDepth - height > 50) {//Pila de al menos 2 bloques -> Añadimos un bloque negro 
+					block.setColor(0);
+					block.setPos(detectedBlocks[j].getPos());
+					block.setSize(24);
+					blocksVector.push_back(block);
+					blackBlocks++;
+				}
+				if (emptyDepth - height > 70) {//Pila de al menos 3 bloques -> Añadimos otro bloque negro
+					block.setColor(0);
+					block.setPos(detectedBlocks[j].getPos());
+					block.setSize(26);
+					blocksVector.push_back(block);
+					blackBlocks++;
+				}
 			}
-			if (emptyDepth - height > 70) {//Pila de al menos 3 bloques -> Añadimos otro bloque negro
-				block.setColor(0);
-				block.setPos(detectedBlocks[j].getPos());
-				block.setSize(26);
-				blocksVector.push_back(block);
-				blackBlocks++;
-			}
-			
 		}
 
 	}
@@ -911,6 +948,9 @@ void Detector::detection(Mat & m, Mat &n) {
 	countedBlocks = blocksVector.size();
 	if (end == 0){
 		cout<<"Se han detectado "<< countedBlocks<<" cubos ("<<redBlocks<<" cubos rojos, "<<greenBlocks<<" cubos verdes, "<<blueBlocks<<" cubos azules, "<<yellowBlocks<<" cubos amarillos y "<<blackBlocks<<" cubos de un color sin determinar"<<") y "<<handDetections<< " pasos de la mano."<<endl;
+	}
+	if ((handDetections == 1) && (yellowBlocks >= 2)) {
+		ambientLight = 1;
 	}
 };
 

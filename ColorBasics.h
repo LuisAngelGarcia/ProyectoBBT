@@ -16,14 +16,14 @@ using namespace cv;
 
 class CColorBasics{
 
-    const int cColorWidth  = 1920;
-    const int cColorHeight = 1080;
+    static const int cColorWidth  = 1920;
+    static const int cColorHeight = 1080;
 	bool imageCaptured = 0;
 
 public:
 
-	CColorBasics(); 
-    ~CColorBasics(); 
+	CColorBasics(); //IMPORTANTE
+    ~CColorBasics(); //IMPORTANTE
 	int getWidth(){ return cColorWidth; }
 	int getHeight(){ return cColorHeight; }
 	bool getImageCaptured() { return imageCaptured; };

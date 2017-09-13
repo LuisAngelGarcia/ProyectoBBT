@@ -123,7 +123,7 @@ int main(void) {
 		Sleep(1000);
 		cout<<"1"<<endl;
 		Sleep(1000);
-		cout<<"Ya"<<endl;
+		cout<< "Ya" << "\a" << endl;
 		unsigned t0 = clock();
 		unsigned newTime, oldTime = t0;
 
@@ -156,8 +156,9 @@ int main(void) {
 				//oldTime = newTime;
 				detector.increaseHandDetected();
 				int siz = times.size();
- 				if ((siz >= 2) && ((times[siz - 1] - times[siz - 2]) < 285)) { //Si el paciente ha movido la caja o la pantalla, la detección de la mano se descontrola (aumenta la velocidad), por lo que es necesario recalibrar las ROI's
+ 				if ((siz >= 2) && ((times[siz - 1] - times[siz - 2]) < 200)) { //Si el paciente ha movido la caja o la pantalla, la detección de la mano se descontrola (aumenta la velocidad), por lo que es necesario recalibrar las ROI's
 					bool detectionFailed = 0;
+					bool box = detector.getHandTested();
 					do {
 						detectionFailed = 0;
 						do{
@@ -172,6 +173,7 @@ int main(void) {
 					
 							if (abs(box.height - box.width) > 50) detectionFailed = 1;
 							if ((divisor.height / divisor.width) < 2) detectionFailed = 1;
+							if (box != detector.getHandTested()) detectionFailed = 1;
 						}
 
 					} while ((detectionFailed == 1));
@@ -182,10 +184,12 @@ int main(void) {
 				do {
 					detector.updateColor(bufferColorMat2);
 				} while (detector.getColorCaptured() == 0);
+
+				if (detector.getLight()) {
+					detector.darkenImage(bufferColorMat2);
+				}
 				
-				//detector.whitePatchTransf(bufferColorMat2);
-				/*
-				imshow("white", bufferColorMat2);
+				/*imshow("white", bufferColorMat2);
 				waitKey(100000);
 				destroyAllWindows();*/
 				//imwrite("Image.jpg", bufferColorMat);
